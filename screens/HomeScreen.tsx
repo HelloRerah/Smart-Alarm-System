@@ -1,179 +1,145 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Switch,
-  ScrollView,
-  StatusBar,
-} from 'react-native';
+import { View, Text, StyleSheet, Switch, TouchableOpacity } from 'react-native';
+import { Alarm } from '../types/Alarm';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
 
-type Props = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'Home'>;
-};
+const HomeScreen = () => {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [alarms, setAlarms] = useState<Alarm[]>([
+    {
+      id: '1',
+      hour: 6,
+      minute: 30,
+      repeatDays: [0,1,2,3,4],
+      label: 'weekdays',
+      enabled: true,
+      stage2DelayMinutes: 40,
+      photoVerificationOn: true,
+    },
+    {
+      id: '2',
+      hour: 7,
+      minute: 0,
+      repeatDays: [5,6],
+      label: 'weekends',
+      enabled: false,
+      stage2DelayMinutes: 30,
+      photoVerificationOn: true,
+    },
+  ]);
 
-type Alarm = {
-  id: number;
-  time: string;
-  label: string;
-  enabled: boolean;
-};
-
-const initialAlarms: Alarm[] = [
-  { id: 1, time: '06:30', label: 'Weekdays', enabled: true },
-  { id: 2, time: '07:00', label: 'Weekends', enabled: false },
-  { id: 3, time: '05:45', label: 'Mon, Wed', enabled: true },
-];
-
-export default function HomeScreen({ navigation }: Props) {
-  const [alarms, setAlarms] = useState<Alarm[]>(initialAlarms);
-
-  const toggleAlarm = (id: number) => {
-    setAlarms(prev =>
-      prev.map(alarm =>
-        alarm.id === id ? { ...alarm, enabled: !alarm.enabled } : alarm,
-      ),
-    );
+  const toggleAlarm = (id: string) => {
+    setAlarms(alarms.map((alarm) =>
+      alarm.id === id
+        ? { ...alarm, enabled: !alarm.enabled }
+        : alarm
+    ));
   };
 
-  return (
+  return(
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
-
-      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Alarms</Text>
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => navigation.navigate('SetAlarm')}>
-          <Text style={styles.addBtnText}>+</Text>
-        </TouchableOpacity>
+  <Text style={styles.title}>Alarms</Text>
+  <TouchableOpacity
+    style={styles.addButton}
+    onPress={() => navigation.navigate('SetAlarm')}
+  >
+    <Text style={styles.addButtonText}>+</Text>
+  </TouchableOpacity>
+</View>
+    
+    {alarms.map((alarm) => (
+      <View key={alarm.id} style={styles.alarmCard}>
+        <View style={styles.cardLeft}>
+        <Text style={styles.alarmTime}>
+        {String(alarm.hour).padStart(2, '0')}:{String(alarm.minute).padStart(2, '0')}
+        </Text>
+        <Text style={styles.alarmLabel}>{alarm.label}</Text>
+        {alarm.photoVerificationOn && (
+          <View style={styles.badge}>
+          <Text style={styles.badgeText}>Photo Verification On</Text>
+        </View>
+        )}
       </View>
-
-      {/* Alarm List */}
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {alarms.map((alarm, index) => (
-          <View
-            key={alarm.id}
-            style={[
-              styles.alarmRow,
-              index === alarms.length - 1 && styles.alarmRowLast,
-            ]}>
-            <View style={styles.alarmLeft}>
-              <Text style={[styles.alarmTime, !alarm.enabled && styles.alarmTimeOff]}>
-                {alarm.time}
-              </Text>
-              <Text style={styles.alarmLabel}>{alarm.label}</Text>
-              <View style={styles.alarmTag}>
-                <Text style={styles.alarmTagText}>Photo Verification On</Text>
-              </View>
-            </View>
-            <Switch
-              value={alarm.enabled}
-              onValueChange={() => toggleAlarm(alarm.id)}
-              trackColor={{ false: '#1a1a1a', true: '#fff' }}
-              thumbColor={alarm.enabled ? '#000' : '#2e2e2e'}
-            />
-          </View>
-        ))}
-
-        {/* Temporary test button — remove when alarm engine is built */}
-        <TouchableOpacity
-          style={styles.testBtn}
-          onPress={() => navigation.navigate('AlarmRinging')}>
-          <Text style={styles.testBtnText}>Test Alarm Screen</Text>
-        </TouchableOpacity>
-      </ScrollView>
+      <Switch
+        value= {alarm.enabled}
+        onValueChange={() => toggleAlarm(alarm.id)}
+        trackColor={{false: '#3A3A3C', true: '#2962FF'}}
+        thumbColor="#FFFFFF"
+      />
+      </View>
+    ))}
     </View>
   );
-}
+};
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create ({
   container: {
+    flex: 1, 
+    backgroundColor: '#000010',
+    padding: 20, 
+  }, 
+  title: {
+    color: '#FFFFFF',
+    fontSize: 40,
+    fontWeight: 'bold',
+  },
+  alarmCard: {
+    backgroundColor: '#1C1C1E',
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  cardLeft: {
     flex: 1,
-    backgroundColor: '#000',
-    paddingTop: 60,
-    paddingHorizontal: 24,
+  },
+  badge: {
+    backgroundColor: '#2C2C2E',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginTop: 10,
+    alignSelf: 'flex-start',
+  },
+  badgeText: {
+    color: '#8E8E93',
+    fontSize: 11,
+  },
+  alarmTime: {
+    color: '#FFFFFF', 
+    fontSize: 40, 
+    fontWeight: '600',
+  },
+  alarmLabel: {
+    color: '#8E8E93',
+    fontSize: 14,
+    marginTop: 4,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 28,
+    marginTop: 10,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  addBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#fff',
-    alignItems: 'center',
+  addButton: {
+    backgroundColor: '#2962FF',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  addBtnText: {
-    fontSize: 22,
-    color: '#000',
-    lineHeight: 26,
+  addButtonText: {
+    color: '#FFFFFF',
+    fontSize: 28,
     fontWeight: '300',
-  },
-  alarmRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#151515',
-  },
-  alarmRowLast: {
-    borderBottomWidth: 0,
-  },
-  alarmLeft: {
-    rowGap: 2,
-  },
-  alarmTime: {
-    fontSize: 36,
-    fontWeight: '200',
-    color: '#fff',
-    letterSpacing: -1,
-  },
-  alarmTimeOff: {
-    color: '#2a2a2a',
-  },
-  alarmLabel: {
-    fontSize: 12,
-    color: '#555',
-  },
-  alarmTag: {
-    alignSelf: 'flex-start',
-    borderWidth: 0.5,
-    borderColor: '#1e1e1e',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 5,
-    marginTop: 4,
-  },
-  alarmTagText: {
-    fontSize: 9,
-    color: '#555',
-  },
-  testBtn: {
-    borderWidth: 0.5,
-    borderColor: '#222',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 32,
-    marginBottom: 40,
-  },
-  testBtnText: {
-    fontSize: 13,
-    color: '#444',
+    marginTop: -2,
   },
 });
+
+export default HomeScreen;
