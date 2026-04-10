@@ -4,11 +4,12 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from './screens/HomeScreen';
 import SetAlarmScreen from './screens/SetAlarmScreen';
+import { Alarm } from './types/Alarm';
 
 export type RootStackParamList = {
   Home: undefined;
-  SetAlarm: undefined;
-}
+  SetAlarm: { onSave: (alarm: Alarm) => void };
+};
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 

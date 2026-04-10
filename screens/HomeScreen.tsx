@@ -44,7 +44,13 @@ const HomeScreen = () => {
   <Text style={styles.title}>Alarms</Text>
   <TouchableOpacity
     style={styles.addButton}
-    onPress={() => navigation.navigate('SetAlarm')}
+    onPress={() =>
+  navigation.navigate('SetAlarm', {
+    onSave: (newAlarm: Alarm) => {
+      setAlarms([...alarms, newAlarm]);
+    },
+  })
+}
   >
     <Text style={styles.addButtonText}>+</Text>
   </TouchableOpacity>
