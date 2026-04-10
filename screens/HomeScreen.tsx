@@ -77,6 +77,31 @@ const HomeScreen = () => {
       />
       </View>
     ))}
+
+      {/* TEMPORARY - remove when alarm engine is ready */}
+      <TouchableOpacity
+        style={styles.debugButton}
+        onPress={() =>
+          navigation.navigate('AlarmRinging', {
+            alarm: alarms[0],
+            verificationObject: 'House Keys',
+          })
+        }
+      >
+        <Text style={styles.debugButtonText}>🔔 Test Alarm Ringing</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.debugButton}
+        onPress={() =>
+          navigation.navigate('Stage2AlarmRinging', {
+            alarm: alarms[0],
+            activityName: 'Brushing Teeth',
+          })
+        }
+      >
+        <Text style={styles.debugButtonText}>🦷 Test Stage 2</Text>
+      </TouchableOpacity>
+
     </View>
   );
 };
@@ -145,6 +170,17 @@ const styles = StyleSheet.create ({
     fontSize: 28,
     fontWeight: '300',
     marginTop: -2,
+  },
+  debugButton: {
+    marginTop: 24,
+    padding: 14,
+    backgroundColor: '#2C2C2E',
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  debugButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
   },
 });
 
