@@ -1,24 +1,43 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
-import Slider from '@react-native-community/slider'
+import Slider from '@react-native-community/slider';
 import { Alarm } from '../types/Alarm';
-import { insertAlarm } from '../database/database';
+import { insertAlarm, updateAlarm } from '../database/database';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 
 const SetAlarmScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<RootStackParamList, 'SetAlarm'>>();
+  const editAlarm = route.params?.editAlarm;
+  const isEditing = editAlarm !== undefined;
 
-  //form state - every field the user can edit on this screen
-  const [hour, setHour] = useState(7);
-  const [minute, setMinute] = useState(30);
-  const [isAM, setIsAM] = useState(true);
-  const [repeatDays, setRepeatDays] = useState<number[]>([]);
-  const [stage2Delay, setStage2Delay] = useState(40);
-  const [label, setLabel] = useState('');
+  // Convert the stored 24h hour back to 12h + AM/PM for the form
+  const computeInitialFormState = () => {
+    if (!editAlarm) {
+      return { hour: 7, minute: 30, isAM: true };
+    }
+    const h24 = editAlarm.hour;
+    let h12 = h24;
+    let am = true;
+    if (h24 === 0) { h12 = 12; am = true; }
+    else if (h24 < 12) { h12 = h24; am = true; }
+    else if (h24 === 12) { h12 = 12; am = false; }
+    else { h12 = h24 - 12; am = false; }
+    return { hour: h12, minute: editAlarm.minute, isAM: am };
+  };
+
+  const initial = computeInitialFormState();
+
+  const [hour, setHour] = useState(initial.hour);
+  const [minute, setMinute] = useState(initial.minute);
+  const [isAM, setIsAM] = useState(initial.isAM);
+  const [repeatDays, setRepeatDays] = useState<number[]>(editAlarm?.repeatDays ?? []);
+  const [stage2Delay, setStage2Delay] = useState(editAlarm?.stage2DelayMinutes ?? 40);
+  const [label, setLabel] = useState(editAlarm?.label ?? '');
   const [showPicker, setShowPicker] = useState(false);
 
   const toggleDay = (dayIndex: number) => {
@@ -29,117 +48,112 @@ const SetAlarmScreen = () => {
     }
   };
 
-
   const handleTimeChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-  setShowPicker(false);
-  if (event.type === 'set' && selectedDate) {
-    const selectedHour24 = selectedDate.getHours();
-    const selectedMinute = selectedDate.getMinutes();
+    setShowPicker(false);
+    if (event.type === 'set' && selectedDate) {
+      const selectedHour24 = selectedDate.getHours();
+      const selectedMinute = selectedDate.getMinutes();
 
-    // Convert 24-hour back to 12-hour for display
-    if (selectedHour24 === 0) {
-      setHour(12);
-      setIsAM(true);
-    } else if (selectedHour24 < 12) {
-      setHour(selectedHour24);
-      setIsAM(true);
-    } else if (selectedHour24 === 12) {
-      setHour(12);
-      setIsAM(false);
-    } else {
-      setHour(selectedHour24 - 12);
-      setIsAM(false);
+      if (selectedHour24 === 0) {
+        setHour(12);
+        setIsAM(true);
+      } else if (selectedHour24 < 12) {
+        setHour(selectedHour24);
+        setIsAM(true);
+      } else if (selectedHour24 === 12) {
+        setHour(12);
+        setIsAM(false);
+      } else {
+        setHour(selectedHour24 - 12);
+        setIsAM(false);
+      }
+      setMinute(selectedMinute);
     }
-    setMinute(selectedMinute);
-  }
-};
-
-  const handleSave = async () => {
-  // Convert 12-hour + AM/PM → 24-hour
-  let finalHour = hour;
-  if (!isAM && hour !== 12) finalHour = hour + 12;
-  if (isAM && hour === 12) finalHour = 0;
-
-  const newAlarm: Alarm = {
-    id: Date.now().toString(),
-    hour: finalHour,
-    minute,
-    repeatDays,
-    label: label || 'Alarm',
-    enabled: true,
-    stage2DelayMinutes: stage2Delay,
-    photoVerificationOn: true,
   };
 
-  try {
-    await insertAlarm(newAlarm);
-    navigation.goBack();
-  } catch (err) {
-    console.log('Failed to save alarm:', err);
-  }
-};
+  const handleSave = async () => {
+    let finalHour = hour;
+    if (!isAM && hour !== 12) finalHour = hour + 12;
+    if (isAM && hour === 12) finalHour = 0;
+
+    const alarmData: Alarm = {
+      id: editAlarm?.id ?? Date.now().toString(),
+      hour: finalHour,
+      minute,
+      repeatDays,
+      label: label || 'Alarm',
+      enabled: editAlarm?.enabled ?? true,
+      stage2DelayMinutes: stage2Delay,
+      photoVerificationOn: true,
+    };
+
+    try {
+      if (isEditing) {
+        await updateAlarm(alarmData);
+      } else {
+        await insertAlarm(alarmData);
+      }
+      navigation.goBack();
+    } catch (err) {
+      console.log('Failed to save alarm:', err);
+    }
+  };
 
   return (
     <View style={styles.container}>
-      {/* Header row: BAck | New Alarm | Save */}
-    <View style={styles.header}>
-      <TouchableOpacity onPress={() => navigation.goBack()}>
-        <Text style={styles.headerButton}>← Back</Text>
-      </TouchableOpacity>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.headerButton}>← Back</Text>
+        </TouchableOpacity>
 
-      <Text style={styles.headerTitle}>New Alarm</Text>
+        <Text style={styles.headerTitle}>{isEditing ? 'Edit Alarm' : 'New Alarm'}</Text>
 
-      <TouchableOpacity onPress={handleSave}>
+        <TouchableOpacity onPress={handleSave}>
           <Text style={styles.headerButton}>Save</Text>
         </TouchableOpacity>
-    </View>
-    
+      </View>
+
       <TouchableOpacity style={styles.timeDisplay} onPress={() => setShowPicker(true)}>
         <Text style={styles.timeText}>
-        {String(hour).padStart(2, '0')}:{String(minute).padStart(2, '0')}
+          {String(hour).padStart(2, '0')}:{String(minute).padStart(2, '0')}
         </Text>
       </TouchableOpacity>
 
-    <View style={styles.ampmRow}>
-      <TouchableOpacity
-      style={[styles.ampmButton, isAM && styles.ampmButtonActive]}
-      onPress={() => setIsAM(true)}
-      >
-        <Text style={[styles.ampmText, isAM && styles.ampmTextActive]}>
-          AM
-        </Text>
-      </TouchableOpacity>
+      <View style={styles.ampmRow}>
+        <TouchableOpacity
+          style={[styles.ampmButton, isAM && styles.ampmButtonActive]}
+          onPress={() => setIsAM(true)}
+        >
+          <Text style={[styles.ampmText, isAM && styles.ampmTextActive]}>AM</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-      style={[styles.ampmButton, !isAM && styles.ampmButtonActive]}
-      onPress={() => setIsAM(false)}
-      >
-        <Text style={[styles.ampmText, !isAM && styles.ampmTextActive]}>
-          PM
-        </Text>
-      </TouchableOpacity>
-    </View>
+        <TouchableOpacity
+          style={[styles.ampmButton, !isAM && styles.ampmButtonActive]}
+          onPress={() => setIsAM(false)}
+        >
+          <Text style={[styles.ampmText, !isAM && styles.ampmTextActive]}>PM</Text>
+        </TouchableOpacity>
+      </View>
 
-    <Text style={styles.sectionLabel}>REPEAT</Text>
-    <View style={styles.daysRow}>
-      {['M','T','W','T','F','S','S'].map((day, index) => {
-        const isSelected = repeatDays.includes(index);
-        return(
-          <TouchableOpacity
-          key={index}
-          style={[styles.dayCircle, isSelected && styles.dayCircleActive]}
-          onPress={() => toggleDay(index)}
-          >
-            <Text style={[styles.dayText, isSelected && styles.dayTextActive]}>
-              {day}
-            </Text>
-          </TouchableOpacity>
-        );
-      }
-      )}
-    </View>
+      <Text style={styles.sectionLabel}>REPEAT</Text>
+      <View style={styles.daysRow}>
+        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => {
+          const isSelected = repeatDays.includes(index);
+          return (
+            <TouchableOpacity
+              key={index}
+              style={[styles.dayCircle, isSelected && styles.dayCircleActive]}
+              onPress={() => toggleDay(index)}
+            >
+              <Text style={[styles.dayText, isSelected && styles.dayTextActive]}>
+                {day}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
-    <View style={styles.stage2Card}>
+      <View style={styles.stage2Card}>
         <View style={styles.stage2Header}>
           <Text style={styles.sectionLabel}>STAGE 2 DELAY</Text>
           <View style={styles.stage2ValueBox}>
@@ -166,36 +180,33 @@ const SetAlarmScreen = () => {
       <Text style={styles.sectionLabel}>LABEL</Text>
       <TextInput
         style={styles.labelInput}
-        placeholder='e.g Wake up, Gym...'
-        placeholderTextColor={'#6C6C70'}
+        placeholder="e.g Wake up, Gym..."
+        placeholderTextColor="#6C6C70"
         value={label}
         onChangeText={setLabel}
         maxLength={30}
       />
 
       {showPicker && (
-  <DateTimePicker
-    value={(() => {
-      // Build a Date object from current 12h state for the picker's initial value
-      const date = new Date();
-      let h24 = hour;
-      if (!isAM && hour !== 12) h24 = hour + 12;
-      if (isAM && hour === 12) h24 = 0;
-      date.setHours(h24);
-      date.setMinutes(minute);
-      return date;
-    })()}
-    mode="time"
-    is24Hour={false}
-    display="default"
-    onChange={handleTimeChange}
-  />
-)}
-
+        <DateTimePicker
+          value={(() => {
+            const date = new Date();
+            let h24 = hour;
+            if (!isAM && hour !== 12) h24 = hour + 12;
+            if (isAM && hour === 12) h24 = 0;
+            date.setHours(h24);
+            date.setMinutes(minute);
+            return date;
+          })()}
+          mode="time"
+          is24Hour={false}
+          display="default"
+          onChange={handleTimeChange}
+        />
+      )}
     </View>
-  )
+  );
 };
-
 
 const styles = StyleSheet.create({
   container: {
