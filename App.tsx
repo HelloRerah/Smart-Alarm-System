@@ -12,7 +12,7 @@ import CameraScreen from './screens/CameraScreen';
 
 export type RootStackParamList = {
   Home: undefined;
-  SetAlarm: undefined;
+  SetAlarm: { editAlarm?: Alarm };
   AlarmRinging: { alarm: Alarm; verificationObject: string };
   Stage2AlarmRinging: { alarm: Alarm; activityName: string };
   Camera: { mode: 'stage1' | 'stage2'; targetName: string };

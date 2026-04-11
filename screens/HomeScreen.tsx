@@ -1,22 +1,23 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Switch, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Switch, TouchableOpacity, Alert } from 'react-native';
 import { Alarm } from '../types/Alarm';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
-import { getAllAlarms } from '../database/database';
+import { getAllAlarms, updateAlarm, deleteAlarm } from '../database/database';
+
 
 const HomeScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [alarms, setAlarms] = useState<Alarm[]>([]);
 
   useFocusEffect(
-  useCallback(() => {
-    getAllAlarms()
-      .then((loaded) => setAlarms(loaded))
-      .catch((err) => console.log('Failed to load alarms:', err));
-  }, [])
-);
+    useCallback(() => {
+      getAllAlarms()
+        .then((loaded) => setAlarms(loaded))
+        .catch((err) => console.log('Failed to load alarms:', err));
+    }, [])
+  );
 
   const toggleAlarm = (id: string) => {
     setAlarms(alarms.map((alarm) =>
@@ -26,51 +27,79 @@ const HomeScreen = () => {
     ));
   };
 
-  return(
+  const handleDelete = (id: string) => {
+    Alert.alert(
+      'Delete alarm?',
+      'This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAlarm(id);
+              setAlarms(alarms.filter((a) => a.id !== id));
+            } catch (err) {
+              console.log('Failed to delete alarm:', err);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  return (
     <View style={styles.container}>
       <View style={styles.header}>
-  <Text style={styles.title}>Alarms</Text>
-  <TouchableOpacity
-    style={styles.addButton}
-    onPress={() => navigation.navigate('SetAlarm')}
-  >
-    <Text style={styles.addButtonText}>+</Text>
-  </TouchableOpacity>
-</View>
-    
-    {alarms.map((alarm) => (
-      <View key={alarm.id} style={styles.alarmCard}>
-        <View style={styles.cardLeft}>
-        <Text style={styles.alarmTime}>
-        {String(alarm.hour).padStart(2, '0')}:{String(alarm.minute).padStart(2, '0')}
-        </Text>
-        <Text style={styles.alarmLabel}>{alarm.label}</Text>
-        {alarm.photoVerificationOn && (
-          <View style={styles.badge}>
-          <Text style={styles.badgeText}>Photo Verification On</Text>
-        </View>
-        )}
+        <Text style={styles.title}>Alarms</Text>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => navigation.navigate('SetAlarm')}
+        >
+          <Text style={styles.addButtonText}>+</Text>
+        </TouchableOpacity>
       </View>
-      <Switch
-        value= {alarm.enabled}
-        onValueChange={() => toggleAlarm(alarm.id)}
-        trackColor={{false: '#3A3A3C', true: '#2962FF'}}
-        thumbColor="#FFFFFF"
-      />
-      </View>
-    ))}
 
-     
+      {alarms.map((alarm) => (
+        <View key={alarm.id} style={styles.alarmCard}>
+          <TouchableOpacity
+            style={styles.cardLeft}
+            onPress={() => navigation.navigate('SetAlarm', { editAlarm: alarm })}
+          >
+            <Text style={styles.alarmTime}>
+              {String(alarm.hour).padStart(2, '0')}:{String(alarm.minute).padStart(2, '0')}
+            </Text>
+            <Text style={styles.alarmLabel}>{alarm.label}</Text>
+            {alarm.photoVerificationOn && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>Photo Verification On</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <View style={styles.cardRight}>
+            <Switch
+              value={alarm.enabled}
+              onValueChange={() => toggleAlarm(alarm.id)}
+              trackColor={{ false: '#3A3A3C', true: '#2962FF' }}
+              thumbColor="#FFFFFF"
+            />
+            <TouchableOpacity onPress={() => handleDelete(alarm.id)} style={styles.deleteButton}>
+              <Text style={styles.deleteIcon}>🗑️</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ))}
     </View>
   );
 };
 
-const styles = StyleSheet.create ({
+const styles = StyleSheet.create({
   container: {
-    flex: 1, 
+    flex: 1,
     backgroundColor: '#000010',
-    padding: 20, 
-  }, 
+    padding: 20,
+  },
   title: {
     color: '#FFFFFF',
     fontSize: 40,
@@ -88,6 +117,17 @@ const styles = StyleSheet.create ({
   cardLeft: {
     flex: 1,
   },
+  cardRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  deleteButton: {
+    padding: 6,
+  },
+  deleteIcon: {
+    fontSize: 18,
+  },
   badge: {
     backgroundColor: '#2C2C2E',
     borderRadius: 12,
@@ -101,8 +141,8 @@ const styles = StyleSheet.create ({
     fontSize: 11,
   },
   alarmTime: {
-    color: '#FFFFFF', 
-    fontSize: 40, 
+    color: '#FFFFFF',
+    fontSize: 40,
     fontWeight: '600',
   },
   alarmLabel: {
@@ -129,17 +169,6 @@ const styles = StyleSheet.create ({
     fontSize: 28,
     fontWeight: '300',
     marginTop: -2,
-  },
-  debugButton: {
-    marginTop: 24,
-    padding: 14,
-    backgroundColor: '#2C2C2E',
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  debugButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
   },
 });
 
