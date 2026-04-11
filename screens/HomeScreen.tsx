@@ -1,34 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Switch, TouchableOpacity } from 'react-native';
 import { Alarm } from '../types/Alarm';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
+import { getAllAlarms } from '../database/database';
 
 const HomeScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [alarms, setAlarms] = useState<Alarm[]>([
-    {
-      id: '1',
-      hour: 6,
-      minute: 30,
-      repeatDays: [0,1,2,3,4],
-      label: 'weekdays',
-      enabled: true,
-      stage2DelayMinutes: 40,
-      photoVerificationOn: true,
-    },
-    {
-      id: '2',
-      hour: 7,
-      minute: 0,
-      repeatDays: [5,6],
-      label: 'weekends',
-      enabled: false,
-      stage2DelayMinutes: 30,
-      photoVerificationOn: true,
-    },
-  ]);
+  const [alarms, setAlarms] = useState<Alarm[]>([]);
+
+  useFocusEffect(
+  useCallback(() => {
+    getAllAlarms()
+      .then((loaded) => setAlarms(loaded))
+      .catch((err) => console.log('Failed to load alarms:', err));
+  }, [])
+);
 
   const toggleAlarm = (id: string) => {
     setAlarms(alarms.map((alarm) =>
@@ -44,13 +32,7 @@ const HomeScreen = () => {
   <Text style={styles.title}>Alarms</Text>
   <TouchableOpacity
     style={styles.addButton}
-    onPress={() =>
-  navigation.navigate('SetAlarm', {
-    onSave: (newAlarm: Alarm) => {
-      setAlarms([...alarms, newAlarm]);
-    },
-  })
-}
+    onPress={() => navigation.navigate('SetAlarm')}
   >
     <Text style={styles.addButtonText}>+</Text>
   </TouchableOpacity>
@@ -78,30 +60,7 @@ const HomeScreen = () => {
       </View>
     ))}
 
-      {/* TEMPORARY - remove when alarm engine is ready */}
-      <TouchableOpacity
-        style={styles.debugButton}
-        onPress={() =>
-          navigation.navigate('AlarmRinging', {
-            alarm: alarms[0],
-            verificationObject: 'House Keys',
-          })
-        }
-      >
-        <Text style={styles.debugButtonText}>🔔 Test Alarm Ringing</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.debugButton}
-        onPress={() =>
-          navigation.navigate('Stage2AlarmRinging', {
-            alarm: alarms[0],
-            activityName: 'Brushing Teeth',
-          })
-        }
-      >
-        <Text style={styles.debugButtonText}>🦷 Test Stage 2</Text>
-      </TouchableOpacity>
-
+     
     </View>
   );
 };
