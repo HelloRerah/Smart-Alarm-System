@@ -1,4 +1,5 @@
-import React from 'react';
+import { initDatabase } from './database/database';
+import React, { useEffect} from 'react';
 import { StatusBar } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -11,7 +12,7 @@ import CameraScreen from './screens/CameraScreen';
 
 export type RootStackParamList = {
   Home: undefined;
-  SetAlarm: { onSave: (alarm: Alarm) => void };
+  SetAlarm: undefined;
   AlarmRinging: { alarm: Alarm; verificationObject: string };
   Stage2AlarmRinging: { alarm: Alarm; activityName: string };
   Camera: { mode: 'stage1' | 'stage2'; targetName: string };
@@ -20,6 +21,13 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const App = () => {
+
+  useEffect(() => {
+    initDatabase()
+      .then(() => console.log('✅ Database ready'))
+      .catch((err) => console.log('❌ Database init failed:', err));
+  }, []);
+
   return (
     <NavigationContainer>
       <StatusBar barStyle="light-content" backgroundColor="#000010"/>

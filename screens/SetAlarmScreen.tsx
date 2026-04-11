@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
 import Slider from '@react-native-community/slider'
 import { Alarm } from '../types/Alarm';
+import { insertAlarm } from '../database/database';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+
 
 const SetAlarmScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const route = useRoute<RouteProp<RootStackParamList, 'SetAlarm'>>();
 
   //form state - every field the user can edit on this screen
   const [hour, setHour] = useState(7);
@@ -17,6 +19,7 @@ const SetAlarmScreen = () => {
   const [repeatDays, setRepeatDays] = useState<number[]>([]);
   const [stage2Delay, setStage2Delay] = useState(40);
   const [label, setLabel] = useState('');
+  const [showPicker, setShowPicker] = useState(false);
 
   const toggleDay = (dayIndex: number) => {
     if (repeatDays.includes(dayIndex)) {
@@ -26,26 +29,55 @@ const SetAlarmScreen = () => {
     }
   };
 
-  const handleSave = () => {
-    //Convert 12-hour + AM/PM -> 24 hour
-    let finalHour = hour;
-    if (!isAM && hour !== 12 ) finalHour = hour +12;
-    if(isAM && hour === 12 ) finalHour = 0;
 
-    const newAlarm: Alarm = {
-      id: Date.now().toString(),
-      hour: finalHour,
-      minute,
-      repeatDays,
-      label: label || 'Alarm',
-      enabled: true,
-      stage2DelayMinutes: stage2Delay,
-      photoVerificationOn: true,
-    };
+  const handleTimeChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+  setShowPicker(false);
+  if (event.type === 'set' && selectedDate) {
+    const selectedHour24 = selectedDate.getHours();
+    const selectedMinute = selectedDate.getMinutes();
 
-    route.params.onSave(newAlarm);
-    navigation.goBack();
+    // Convert 24-hour back to 12-hour for display
+    if (selectedHour24 === 0) {
+      setHour(12);
+      setIsAM(true);
+    } else if (selectedHour24 < 12) {
+      setHour(selectedHour24);
+      setIsAM(true);
+    } else if (selectedHour24 === 12) {
+      setHour(12);
+      setIsAM(false);
+    } else {
+      setHour(selectedHour24 - 12);
+      setIsAM(false);
+    }
+    setMinute(selectedMinute);
+  }
+};
+
+  const handleSave = async () => {
+  // Convert 12-hour + AM/PM → 24-hour
+  let finalHour = hour;
+  if (!isAM && hour !== 12) finalHour = hour + 12;
+  if (isAM && hour === 12) finalHour = 0;
+
+  const newAlarm: Alarm = {
+    id: Date.now().toString(),
+    hour: finalHour,
+    minute,
+    repeatDays,
+    label: label || 'Alarm',
+    enabled: true,
+    stage2DelayMinutes: stage2Delay,
+    photoVerificationOn: true,
   };
+
+  try {
+    await insertAlarm(newAlarm);
+    navigation.goBack();
+  } catch (err) {
+    console.log('Failed to save alarm:', err);
+  }
+};
 
   return (
     <View style={styles.container}>
@@ -57,16 +89,16 @@ const SetAlarmScreen = () => {
 
       <Text style={styles.headerTitle}>New Alarm</Text>
 
-      <TouchableOpacity onPress={() =>{handleSave}}>
+      <TouchableOpacity onPress={handleSave}>
           <Text style={styles.headerButton}>Save</Text>
         </TouchableOpacity>
     </View>
     
-    <View style={styles.timeDisplay}>
-      <Text style={styles.timeText}>
+      <TouchableOpacity style={styles.timeDisplay} onPress={() => setShowPicker(true)}>
+        <Text style={styles.timeText}>
         {String(hour).padStart(2, '0')}:{String(minute).padStart(2, '0')}
-      </Text>
-    </View>
+        </Text>
+      </TouchableOpacity>
 
     <View style={styles.ampmRow}>
       <TouchableOpacity
@@ -140,6 +172,26 @@ const SetAlarmScreen = () => {
         onChangeText={setLabel}
         maxLength={30}
       />
+
+      {showPicker && (
+  <DateTimePicker
+    value={(() => {
+      // Build a Date object from current 12h state for the picker's initial value
+      const date = new Date();
+      let h24 = hour;
+      if (!isAM && hour !== 12) h24 = hour + 12;
+      if (isAM && hour === 12) h24 = 0;
+      date.setHours(h24);
+      date.setMinutes(minute);
+      return date;
+    })()}
+    mode="time"
+    is24Hour={false}
+    display="default"
+    onChange={handleTimeChange}
+  />
+)}
+
     </View>
   )
 };
