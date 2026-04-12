@@ -1,10 +1,11 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Switch, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, Switch, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { Alarm } from '../types/Alarm';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
-import { getAllAlarms, updateAlarm, deleteAlarm } from '../database/database';
+import { getAllAlarms, deleteAlarm } from '../database/database';
+
 
 const HomeScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -54,41 +55,43 @@ const HomeScreen = () => {
         <Text style={styles.title}>Alarms</Text>
         <TouchableOpacity
           style={styles.addButton}
-          onPress={() => navigation.navigate('SetAlarm', { editAlarm: undefined })}
+          onPress={() => navigation.navigate('SetAlarm', {})}
         >
           <Text style={styles.addButtonText}>+</Text>
         </TouchableOpacity>
       </View>
 
-      {alarms.map((alarm) => (
-        <View key={alarm.id} style={styles.alarmCard}>
-          <TouchableOpacity
-            style={styles.cardLeft}
-            onPress={() => navigation.navigate('SetAlarm', { editAlarm: alarm })}
-          >
-            <Text style={styles.alarmTime}>
-              {String(alarm.hour).padStart(2, '0')}:{String(alarm.minute).padStart(2, '0')}
-            </Text>
-            <Text style={styles.alarmLabel}>{alarm.label}</Text>
-            {alarm.photoVerificationOn && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>Photo Verification On</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <View style={styles.cardRight}>
-            <Switch
-              value={alarm.enabled}
-              onValueChange={() => toggleAlarm(alarm.id)}
-              trackColor={{ false: '#3A3A3C', true: '#2962FF' }}
-              thumbColor="#FFFFFF"
-            />
-            <TouchableOpacity onPress={() => handleDelete(alarm.id)} style={styles.deleteButton}>
-              <Text style={styles.deleteIcon}>🗑️</Text>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {alarms.map((alarm) => (
+          <View key={alarm.id} style={styles.alarmCard}>
+            <TouchableOpacity
+              style={styles.cardLeft}
+              onPress={() => navigation.navigate('SetAlarm', { editAlarm: alarm })}
+            >
+              <Text style={styles.alarmTime}>
+                {String(alarm.hour).padStart(2, '0')}:{String(alarm.minute).padStart(2, '0')}
+              </Text>
+              <Text style={styles.alarmLabel}>{alarm.label}</Text>
+              {alarm.photoVerificationOn && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>Photo Verification On</Text>
+                </View>
+              )}
             </TouchableOpacity>
+            <View style={styles.cardRight}>
+              <Switch
+                value={alarm.enabled}
+                onValueChange={() => toggleAlarm(alarm.id)}
+                trackColor={{ false: '#3A3A3C', true: '#2962FF' }}
+                thumbColor="#FFFFFF"
+              />
+              <TouchableOpacity onPress={() => handleDelete(alarm.id)} style={styles.deleteButton}>
+                <Text style={styles.deleteIcon}>🗑️</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      ))}
+        ))}
+      </ScrollView>
     </View>
   );
 };
