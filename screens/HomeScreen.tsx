@@ -5,7 +5,18 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
 import { getAllAlarms, deleteAlarm } from '../database/database';
+import { scheduleAlarm, cancelAlarm } from '../services/alarmEngine';
 
+const TEST_ALARM: Alarm = {
+  id: 'test-001',
+  hour: 7,
+  minute: 0,
+  repeatDays: [],
+  label: 'Test Alarm',
+  enabled: true,
+  stage2DelayMinutes: 30,
+  photoVerificationOn: true,
+};
 
 const HomeScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -19,35 +30,40 @@ const HomeScreen = () => {
     }, [])
   );
 
-  const toggleAlarm = (id: string) => {
-    setAlarms(alarms.map((alarm) =>
-      alarm.id === id
-        ? { ...alarm, enabled: !alarm.enabled }
-        : alarm
-    ));
-  };
+  const toggleAlarm = async (id: string) => {
+  const alarm = alarms.find((a) => a.id === id);
+  if (!alarm) return;
+  const updated = { ...alarm, enabled: !alarm.enabled };
+  setAlarms(alarms.map((a) => a.id === id ? updated : a));
+  if (updated.enabled) {
+    await scheduleAlarm(updated);
+  } else {
+    await cancelAlarm(id);
+  }
+};
 
-  const handleDelete = (id: string) => {
-    Alert.alert(
-      'Delete alarm?',
-      'This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteAlarm(id);
-              setAlarms(alarms.filter((a) => a.id !== id));
-            } catch (err) {
-              console.log('Failed to delete alarm:', err);
-            }
-          },
+const handleDelete = (id: string) => {
+  Alert.alert(
+    'Delete alarm?',
+    'This action cannot be undone.',
+    [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await cancelAlarm(id);
+            await deleteAlarm(id);
+            setAlarms(alarms.filter((a) => a.id !== id));
+          } catch (err) {
+            console.log('Failed to delete alarm:', err);
+          }
         },
-      ]
-    );
-  };
+      },
+    ]
+  );
+};
 
   return (
     <View style={styles.container}>
@@ -92,6 +108,29 @@ const HomeScreen = () => {
           </View>
         ))}
       </ScrollView>
+
+      {/* ── DEV TEST BUTTONS ── remove before final submission ── */}
+      <View style={styles.testSection}>
+        <Text style={styles.testLabel}>DEV TESTING</Text>
+        <TouchableOpacity
+          style={styles.testButton}
+          onPress={() => navigation.navigate('AlarmRinging', {
+            alarm: TEST_ALARM,
+            verificationObject: 'Water Bottle',
+          })}
+        >
+          <Text style={styles.testButtonText}>▶ Test Stage 1 Alarm</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.testButton, styles.testButton2]}
+          onPress={() => navigation.navigate('Stage2AlarmRinging', {
+            alarm: TEST_ALARM,
+            activityName: 'Brushing Teeth',
+          })}
+        >
+          <Text style={styles.testButtonText}>▶ Test Stage 2 Alarm</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -171,6 +210,36 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '300',
     marginTop: -2,
+  },
+  testSection: {
+    borderTopWidth: 0.5,
+    borderTopColor: '#2C2C2E',
+    paddingTop: 16,
+    marginTop: 8,
+    gap: 10,
+  },
+  testLabel: {
+    color: '#3A3A3C',
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1.5,
+    textAlign: 'center',
+  },
+  testButton: {
+    backgroundColor: '#1C1C1E',
+    borderWidth: 1,
+    borderColor: '#2962FF',
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+  },
+  testButton2: {
+    borderColor: '#FF9500',
+  },
+  testButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

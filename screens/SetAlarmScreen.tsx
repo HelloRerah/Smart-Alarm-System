@@ -7,7 +7,7 @@ import Slider from '@react-native-community/slider';
 import { Alarm } from '../types/Alarm';
 import { insertAlarm, updateAlarm } from '../database/database';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-
+import { scheduleAlarm, cancelAlarm } from '../services/alarmEngine';
 
 const SetAlarmScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -15,11 +15,8 @@ const SetAlarmScreen = () => {
   const editAlarm = route.params?.editAlarm;
   const isEditing = editAlarm !== undefined;
 
-  // Convert the stored 24h hour back to 12h + AM/PM for the form
   const computeInitialFormState = () => {
-    if (!editAlarm) {
-      return { hour: 7, minute: 30, isAM: true };
-    }
+    if (!editAlarm) return { hour: 7, minute: 30, isAM: true };
     const h24 = editAlarm.hour;
     let h12 = h24;
     let am = true;
@@ -31,7 +28,6 @@ const SetAlarmScreen = () => {
   };
 
   const initial = computeInitialFormState();
-
   const [hour, setHour] = useState(initial.hour);
   const [minute, setMinute] = useState(initial.minute);
   const [isAM, setIsAM] = useState(initial.isAM);
@@ -53,20 +49,10 @@ const SetAlarmScreen = () => {
     if (event.type === 'set' && selectedDate) {
       const selectedHour24 = selectedDate.getHours();
       const selectedMinute = selectedDate.getMinutes();
-
-      if (selectedHour24 === 0) {
-        setHour(12);
-        setIsAM(true);
-      } else if (selectedHour24 < 12) {
-        setHour(selectedHour24);
-        setIsAM(true);
-      } else if (selectedHour24 === 12) {
-        setHour(12);
-        setIsAM(false);
-      } else {
-        setHour(selectedHour24 - 12);
-        setIsAM(false);
-      }
+      if (selectedHour24 === 0) { setHour(12); setIsAM(true); }
+      else if (selectedHour24 < 12) { setHour(selectedHour24); setIsAM(true); }
+      else if (selectedHour24 === 12) { setHour(12); setIsAM(false); }
+      else { setHour(selectedHour24 - 12); setIsAM(false); }
       setMinute(selectedMinute);
     }
   };
@@ -82,17 +68,19 @@ const SetAlarmScreen = () => {
       minute,
       repeatDays,
       label: label || 'Alarm',
-      enabled: editAlarm?.enabled ?? true,
+      enabled: true,
       stage2DelayMinutes: stage2Delay,
       photoVerificationOn: true,
     };
 
     try {
       if (isEditing) {
+        await cancelAlarm(alarmData.id); // cancel old schedule first
         await updateAlarm(alarmData);
       } else {
         await insertAlarm(alarmData);
       }
+      await scheduleAlarm(alarmData); // schedule the new one
       navigation.goBack();
     } catch (err) {
       console.log('Failed to save alarm:', err);
@@ -105,9 +93,7 @@ const SetAlarmScreen = () => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.headerButton}>← Back</Text>
         </TouchableOpacity>
-
         <Text style={styles.headerTitle}>{isEditing ? 'Edit Alarm' : 'New Alarm'}</Text>
-
         <TouchableOpacity onPress={handleSave}>
           <Text style={styles.headerButton}>Save</Text>
         </TouchableOpacity>
@@ -126,7 +112,6 @@ const SetAlarmScreen = () => {
         >
           <Text style={[styles.ampmText, isAM && styles.ampmTextActive]}>AM</Text>
         </TouchableOpacity>
-
         <TouchableOpacity
           style={[styles.ampmButton, !isAM && styles.ampmButtonActive]}
           onPress={() => setIsAM(false)}
@@ -145,9 +130,7 @@ const SetAlarmScreen = () => {
               style={[styles.dayCircle, isSelected && styles.dayCircleActive]}
               onPress={() => toggleDay(index)}
             >
-              <Text style={[styles.dayText, isSelected && styles.dayTextActive]}>
-                {day}
-              </Text>
+              <Text style={[styles.dayText, isSelected && styles.dayTextActive]}>{day}</Text>
             </TouchableOpacity>
           );
         })}
@@ -209,144 +192,31 @@ const SetAlarmScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000010',
-    padding: 20,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  headerButton: {
-    color: '#FFFFFF',
-    fontSize: 16,
-  },
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  timeDisplay: {
-    alignItems: 'center',
-    marginTop: 40,
-    marginBottom: 20,
-  },
-  timeText: {
-    color: '#FFFFFF',
-    fontSize: 72,
-    fontWeight: '300',
-    letterSpacing: 2,
-  },
-  ampmRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
-    marginBottom: 30,
-  },
-  ampmButton: {
-    paddingHorizontal: 28,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: '#1C1C1E',
-    borderWidth: 1,
-    borderColor: '#2C2C2E',
-  },
-  ampmButtonActive: {
-    backgroundColor: '#2962FF',
-    borderColor: '#2962FF',
-  },
-  ampmText: {
-    color: '#8E8E93',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  ampmTextActive: {
-    color: '#FFFFFF',
-  },
-  sectionLabel: {
-    color: '#8E8E93',
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1,
-    marginBottom: 12,
-  },
-  daysRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 30,
-  },
-  dayCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#1C1C1E',
-    borderWidth: 1,
-    borderColor: '#2C2C2E',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dayCircleActive: {
-    backgroundColor: '#2962FF',
-    borderColor: '#2962FF',
-  },
-  dayText: {
-    color: '#8E8E93',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  dayTextActive: {
-    color: '#FFFFFF',
-  },
-  stage2Card: {
-    backgroundColor: '#1C1C1E',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 24,
-  },
-  stage2Header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  stage2ValueBox: {
-    backgroundColor: '#2C2C2E',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-  },
-  stage2ValueText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
-  sliderLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 4,
-  },
-  sliderLabelText: {
-    color: '#8E8E93',
-    fontSize: 12,
-  },
-  labelInput: {
-    backgroundColor: '#1C1C1E',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    color: '#FFFFFF',
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#2C2C2E',
-    marginBottom: 24,
-  },
+  container: { flex: 1, backgroundColor: '#000010', padding: 20 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
+  headerButton: { color: '#FFFFFF', fontSize: 16 },
+  headerTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '600' },
+  timeDisplay: { alignItems: 'center', marginTop: 40, marginBottom: 20 },
+  timeText: { color: '#FFFFFF', fontSize: 72, fontWeight: '300', letterSpacing: 2 },
+  ampmRow: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 30 },
+  ampmButton: { paddingHorizontal: 28, paddingVertical: 10, borderRadius: 20, backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#2C2C2E' },
+  ampmButtonActive: { backgroundColor: '#2962FF', borderColor: '#2962FF' },
+  ampmText: { color: '#8E8E93', fontSize: 16, fontWeight: '600' },
+  ampmTextActive: { color: '#FFFFFF' },
+  sectionLabel: { color: '#8E8E93', fontSize: 12, fontWeight: '600', letterSpacing: 1, marginBottom: 12 },
+  daysRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30 },
+  dayCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#2C2C2E', justifyContent: 'center', alignItems: 'center' },
+  dayCircleActive: { backgroundColor: '#2962FF', borderColor: '#2962FF' },
+  dayText: { color: '#8E8E93', fontSize: 14, fontWeight: '600' },
+  dayTextActive: { color: '#FFFFFF' },
+  stage2Card: { backgroundColor: '#1C1C1E', borderRadius: 16, padding: 16, marginBottom: 24 },
+  stage2Header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  stage2ValueBox: { backgroundColor: '#2C2C2E', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 6 },
+  stage2ValueText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
+  slider: { width: '100%', height: 40 },
+  sliderLabels: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4 },
+  sliderLabelText: { color: '#8E8E93', fontSize: 12 },
+  labelInput: { backgroundColor: '#1C1C1E', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, color: '#FFFFFF', fontSize: 16, borderWidth: 1, borderColor: '#2C2C2E', marginBottom: 24 },
 });
 
 export default SetAlarmScreen;
