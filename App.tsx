@@ -8,7 +8,7 @@ import SetAlarmScreen from './screens/SetAlarmScreen';
 import { Alarm } from './types/Alarm';
 import AlarmRingingScreen from './screens/AlarmRingingScreen';
 import Stage2AlarmRingingScreen from './screens/Stage2AlarmRingingScreen';
-//import CameraScreen from './screens/CameraScreen';
+import CameraScreen from './screens/CameraScreen';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -25,7 +25,7 @@ const App = () => {
   useEffect(() => {
     initDatabase()
       .then(() => console.log('✅ Database ready'))
-      .catch((err) => console.log('❌ Database init failed:', err));
+      .catch((err) => console.log('Mock verifier now → full working flow today❌ Database init failed:', err));
   }, []);
 
   return (
@@ -40,7 +40,7 @@ const App = () => {
         <Stack.Screen name="SetAlarm" component={SetAlarmScreen} />
         <Stack.Screen name="AlarmRinging" component={AlarmRingingScreen} />
         <Stack.Screen name="Stage2AlarmRinging" component={Stage2AlarmRingingScreen} />
-        {/* <Stack.Screen name="Camera" component={CameraScreen} /> */}
+        <Stack.Screen name="Camera" component={CameraScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
