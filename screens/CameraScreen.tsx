@@ -5,6 +5,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { launchCamera } from 'react-native-image-picker';
 import { RootStackParamList } from '../App';
 import { verifyPhoto } from '../services/aiVerification';
+import { scheduleStage2 } from '../services/alarmEngine';
+import notifee from '@notifee/react-native';
 
 const CameraScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -27,6 +29,14 @@ const CameraScreen = () => {
       const result = await verifyPhoto(uri, targetName);
 
       if (result.passed) {
+        if (mode === 'stage1') {
+          await notifee.cancelNotification(route.params.alarm.id);
+          await scheduleStage2(route.params.alarm, route.params.alarm.stage2DelayMinutes ?? 30);
+          console.log('✅ Stage 2 scheduled');
+        } else {
+          await notifee.cancelNotification(`${route.params.alarm.id}_stage2`);
+        }
+
         Alert.alert(
           '✅ Verified!',
           `Confidence: ${(result.confidence * 100).toFixed(0)}%`,

@@ -6,7 +6,8 @@ import notifee, {
 } from '@notifee/react-native';
 import { Alarm } from '../types/Alarm';
 
-const CHANNEL_ID = 'smart_alarm';
+const CHANNEL_ID = 'smart_alarm_v2';
+
 const VERIFICATION_OBJECTS = [
   'Water Bottle',
   'House Keys',
@@ -17,6 +18,7 @@ const VERIFICATION_OBJECTS = [
   'Wallet',
   'Book',
 ];
+
 const MORNING_ACTIVITIES = [
   'Brushing Teeth',
   'Making Bed',
@@ -31,14 +33,18 @@ export const getRandomActivity = () =>
   MORNING_ACTIVITIES[Math.floor(Math.random() * MORNING_ACTIVITIES.length)];
 
 const createChannel = async () => {
-  await notifee.createChannel({
-    id: CHANNEL_ID,
-    name: 'Alarm Notifications',
-    importance: AndroidImportance.HIGH,
-    visibility: AndroidVisibility.PUBLIC,
-    sound: 'default',
-    vibration: true,
-  });
+  const channels = await notifee.getChannels();
+  const exists = channels.find(c => c.id === CHANNEL_ID);
+  if (!exists) {
+    await notifee.createChannel({
+      id: CHANNEL_ID,
+      name: 'Alarm Notifications',
+      importance: AndroidImportance.HIGH,
+      visibility: AndroidVisibility.PUBLIC,
+      sound: 'alarm_sound',
+      vibration: true,
+    });
+  }
 };
 
 export const scheduleAlarm = async (alarm: Alarm): Promise<void> => {
@@ -48,7 +54,6 @@ export const scheduleAlarm = async (alarm: Alarm): Promise<void> => {
   const trigger = new Date();
   trigger.setHours(alarm.hour, alarm.minute, 0, 0);
 
-  // If time already passed today, schedule for tomorrow
   if (trigger <= now) {
     trigger.setDate(trigger.getDate() + 1);
   }
@@ -80,8 +85,10 @@ export const scheduleAlarm = async (alarm: Alarm): Promise<void> => {
         visibility: AndroidVisibility.PUBLIC,
         fullScreenAction: { id: 'default' },
         pressAction: { id: 'default', launchActivity: 'default' },
-        sound: 'default',
+        sound: 'alarm_sound',
         vibrationPattern: [300, 500, 300, 500],
+        asForegroundService: true,
+        loopSound: true,
       },
     },
     timestampTrigger
@@ -120,8 +127,10 @@ export const scheduleStage2 = async (alarm: Alarm, delayMinutes: number): Promis
         visibility: AndroidVisibility.PUBLIC,
         fullScreenAction: { id: 'default' },
         pressAction: { id: 'default', launchActivity: 'default' },
-        sound: 'default',
+        sound: 'alarm_sound',
         vibrationPattern: [300, 500, 300, 500],
+        asForegroundService: true,
+        loopSound: true,
       },
     },
     timestampTrigger
