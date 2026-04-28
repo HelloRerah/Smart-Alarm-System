@@ -4,28 +4,44 @@ import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
 
+const OUTDOOR_ICONS: Record<string, string> = {
+  'Tree': '🌳',
+  'Sky': '☁️',
+  'Brick Wall': '🧱',
+  'Gate': '🚪',
+  'Grass': '🌿',
+};
+
 const Stage2AlarmRingingScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'Stage2AlarmRinging'>>();
   const { alarm, activityName } = route.params;
+
+  const icon = OUTDOOR_ICONS[activityName] ?? '🌍';
 
   return (
     <View style={styles.container}>
       <View style={styles.stageBadge}>
         <Text style={styles.stageBadgeText}>STAGE 2</Text>
       </View>
+
       <Text style={styles.time}>
         {String(alarm.hour).padStart(2, '0')}:{String(alarm.minute).padStart(2, '0')}
       </Text>
-      <Text style={styles.label}>Morning Verification</Text>
-      <Text style={styles.heading}>PROVE YOU STARTED YOUR MORNING</Text>
+
+      <Text style={styles.label}>Outdoor Verification</Text>
+
+      <Text style={styles.heading}>STEP OUTSIDE AND PHOTOGRAPH THIS</Text>
+
       <View style={styles.activityCard}>
-        <Text style={styles.activityIcon}>🪥</Text>
+        <Text style={styles.activityIcon}>{icon}</Text>
         <Text style={styles.activityName}>{activityName}</Text>
       </View>
+
       <Text style={styles.description}>
-        Take a photo showing you have completed this activity.
+        Go outside and find this. Photograph it to prove you are up and out!
       </Text>
+
       <TouchableOpacity
         style={styles.cameraButton}
         onPress={() => navigation.navigate('Camera', {
@@ -36,9 +52,10 @@ const Stage2AlarmRingingScreen = () => {
       >
         <Text style={styles.cameraButtonText}>Open Camera to Dismiss</Text>
       </TouchableOpacity>
+
       <View style={styles.footer}>
         <Text style={styles.footerTitle}>Stage 2 Alarm</Text>
-        <Text style={styles.footerCaption}>Morning activity verify</Text>
+        <Text style={styles.footerCaption}>Outdoor verification</Text>
       </View>
     </View>
   );

@@ -19,18 +19,19 @@ const VERIFICATION_OBJECTS = [
   'Book',
 ];
 
-const MORNING_ACTIVITIES = [
-  'Brushing Teeth',
-  'Making Bed',
-  'Eating Breakfast',
-  'Washing Face',
+const OUTDOOR_OBJECTS = [
+  'Tree',
+  'Sky',
+  'Brick Wall',
+  'Gate',
+  'Grass',
 ];
 
 export const getRandomObject = () =>
   VERIFICATION_OBJECTS[Math.floor(Math.random() * VERIFICATION_OBJECTS.length)];
 
-export const getRandomActivity = () =>
-  MORNING_ACTIVITIES[Math.floor(Math.random() * MORNING_ACTIVITIES.length)];
+export const getRandomOutdoorObject = () =>
+  OUTDOOR_OBJECTS[Math.floor(Math.random() * OUTDOOR_OBJECTS.length)];
 
 const createChannel = async () => {
   const channels = await notifee.getChannels();
@@ -101,7 +102,7 @@ export const scheduleStage2 = async (alarm: Alarm, delayMinutes: number): Promis
   await createChannel();
 
   const trigger = new Date(Date.now() + delayMinutes * 60 * 1000);
-  const activityName = getRandomActivity();
+  const outdoorObject = getRandomOutdoorObject();
 
   const timestampTrigger: TimestampTrigger = {
     type: TriggerType.TIMESTAMP,
@@ -111,11 +112,11 @@ export const scheduleStage2 = async (alarm: Alarm, delayMinutes: number): Promis
   await notifee.createTriggerNotification(
     {
       id: `${alarm.id}_stage2`,
-      title: '⏰ Stage 2 — Morning Check',
-      body: `Photograph yourself: ${activityName}`,
+      title: '⏰ Stage 2 — Go Outside!',
+      body: `Step outside and photograph: ${outdoorObject}`,
       data: {
         alarmId: alarm.id,
-        activityName,
+        activityName: outdoorObject,
         stage: 'stage2',
         alarmHour: String(alarm.hour),
         alarmMinute: String(alarm.minute),
@@ -136,7 +137,7 @@ export const scheduleStage2 = async (alarm: Alarm, delayMinutes: number): Promis
     timestampTrigger
   );
 
-  console.log(`✅ Stage 2 scheduled in ${delayMinutes} minutes — activity: ${activityName}`);
+  console.log(`✅ Stage 2 scheduled in ${delayMinutes} minutes — outdoor: ${outdoorObject}`);
 };
 
 export const cancelAlarm = async (alarmId: string): Promise<void> => {
