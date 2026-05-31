@@ -9,7 +9,7 @@ import notifee, { EventType } from '@notifee/react-native';
 import { navigate } from './services/navigationRef';
 
 notifee.onBackgroundEvent(async ({ type, detail }) => {
-  if (type === EventType.PRESS) {
+  if (type === EventType.PRESS || type === EventType.DELIVERED) {
     const data = detail.notification?.data;
     if (!data) return;
 

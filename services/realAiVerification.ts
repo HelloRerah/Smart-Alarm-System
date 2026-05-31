@@ -1,24 +1,32 @@
-// services/realAIVerification.ts
+// services/realAiVerification.ts
 // Real AI verification using react-native-fast-tflite + Teachable Machine model
-
 import { loadTensorflowModel } from 'react-native-fast-tflite';
 import { VerificationResult } from './aiVerification';
+import ImageResizer from 'react-native-image-resizer';
+import RNFS from 'react-native-fs';
+import jpeg from 'jpeg-js';
+import { Buffer } from 'buffer';
 
+// Labels must match Sam's model exactly (labels.txt index order)
 const LABELS = [
-  'Background / Other',
-  'Book',
-  'Brick Wall',
-  'Charger',
-  'Coffee Mug',
-  'Gate',
-  'Grass',
-  'House Keys',
-  'Shoes',
-  'Sky',
-  'Tree',
-  'TV Remote',
-  'Wallet',
-  'Water Bottle',
+  'Grass',         // 0
+  'Chair',         // 1
+  'Dustbin',       // 2
+  'Tree',          // 3
+  'Keys',          // 4
+  'Stove',         // 5
+  'Fridge',        // 6
+  'Microwave',     // 7
+  'Sky',           // 8
+  'Kettle',        // 9
+  'Light Switch',  // 10
+  'Door Handle',   // 11
+  'TV',            // 12
+  'Broom',         // 13
+  'Shoes',         // 14
+  'Water Bottle',  // 15
+  'TV Remote',     // 16
+  'Brick Wall',    // 17
 ];
 
 const CONFIDENCE_THRESHOLD = 0.75;
@@ -29,38 +37,57 @@ let model: Awaited<ReturnType<typeof loadTensorflowModel>> | null = null;
 const getModel = async () => {
   if (model) return model;
   model = await loadTensorflowModel(
-    require('../assets/model.tflite') as any,
-    { delegate: 'default' } as any
+    require('../assets/model_unquant.tflite') as any,
+    []
   );
   return model;
 };
 
 const imageUriToInputBuffer = async (uri: string): Promise<ArrayBuffer> => {
-  const response = await fetch(uri);
-  const blob = await response.blob();
+  // Step 1: Resize longest side to 224 (aspect ratio preserved by resizer)
+  const resized = await ImageResizer.createResizedImage(
+    uri,
+    MODEL_INPUT_SIZE,
+    MODEL_INPUT_SIZE,
+    'JPEG',
+    90,
+    0
+  );
 
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const rawBuffer = reader.result as ArrayBuffer;
-      const uint8 = new Uint8Array(rawBuffer);
+  // Step 2: Read the resized file as base64
+  const cleanPath = resized.uri.replace('file://', '');
+  const base64 = await RNFS.readFile(cleanPath, 'base64');
 
-      const outputBuffer = new ArrayBuffer(MODEL_INPUT_SIZE * MODEL_INPUT_SIZE * 3 * 4);
-      const float32 = new Float32Array(outputBuffer);
-      const pixelCount = MODEL_INPUT_SIZE * MODEL_INPUT_SIZE;
+  // Step 3: Decode JPEG to raw RGBA pixels
+  const buffer = Buffer.from(base64, 'base64');
+  const decoded = jpeg.decode(buffer, { useTArray: true });
 
-      for (let i = 0; i < pixelCount; i++) {
-        const offset = i * 3;
-        float32[offset] = uint8[offset] / 255.0;
-        float32[offset + 1] = uint8[offset + 1] / 255.0;
-        float32[offset + 2] = uint8[offset + 2] / 255.0;
-      }
+  const srcWidth = decoded.width;
+  const srcHeight = decoded.height;
+  console.log(`📐 Decoded: ${srcWidth}x${srcHeight}, data length: ${decoded.data.length}`);
 
-      resolve(outputBuffer);
-    };
-    reader.onerror = reject;
-    reader.readAsArrayBuffer(blob);
-  });
+  // Step 4: Center the source image into a 224x224 canvas with black padding.
+  // This mirrors how Teachable Machine handles non-square images.
+  const dstSize = MODEL_INPUT_SIZE;
+  const offsetX = Math.floor((dstSize - srcWidth) / 2);
+  const offsetY = Math.floor((dstSize - srcHeight) / 2);
+
+  const outputBuffer = new ArrayBuffer(dstSize * dstSize * 3 * 4);
+  const float32 = new Float32Array(outputBuffer); // zeros = black padding by default
+
+  for (let y = 0; y < srcHeight; y++) {
+    for (let x = 0; x < srcWidth; x++) {
+      const srcIdx = (y * srcWidth + x) * 4; // RGBA source
+      const dstX = x + offsetX;
+      const dstY = y + offsetY;
+      const dstIdx = (dstY * dstSize + dstX) * 3; // RGB destination
+      float32[dstIdx] = decoded.data[srcIdx] / 255.0;
+      float32[dstIdx + 1] = decoded.data[srcIdx + 1] / 255.0;
+      float32[dstIdx + 2] = decoded.data[srcIdx + 2] / 255.0;
+    }
+  }
+
+  return outputBuffer;
 };
 
 export const verifyPhotoReal = async (
@@ -71,10 +98,24 @@ export const verifyPhotoReal = async (
     const tflite = await getModel();
     const inputData = await imageUriToInputBuffer(photoUri);
     const outputs = await (tflite as any).run([inputData]);
-    const scores = Array.from(outputs[0] as Float32Array);
 
-    console.log('🤖 AI scores:', scores.map((s, i) => `${LABELS[i]}: ${(s * 100).toFixed(1)}%`).join(', '));
+    console.log('🔍 outputs length:', outputs?.length);
+    console.log('🔍 outputs[0] type:', typeof outputs?.[0], '| length:', outputs?.[0]?.length);
+    console.log('🔍 outputs[0] value:', JSON.stringify(outputs?.[0]));
 
+    const scores = Array.from(new Float32Array(outputs[0] as ArrayBuffer));
+
+    console.log(
+      '🤖 AI scores:',
+      scores.map((s, i) => `${LABELS[i]}: ${(s * 100).toFixed(1)}%`).join(', ')
+    );
+
+    // Find the label the model is most confident about
+    const topIndex = scores.indexOf(Math.max(...scores));
+    const topLabel = LABELS[topIndex];
+    const topConfidence = scores[topIndex];
+
+    // Find the index of what we're actually looking for
     const targetIndex = LABELS.findIndex(
       label => label.toLowerCase() === targetName.toLowerCase()
     );
@@ -84,15 +125,22 @@ export const verifyPhotoReal = async (
       return { passed: false, confidence: 0 };
     }
 
-    const confidence = scores[targetIndex];
-    const passed = confidence >= CONFIDENCE_THRESHOLD;
+    const targetConfidence = scores[targetIndex];
 
-    console.log(`🎯 Target: "${targetName}" | Confidence: ${(confidence * 100).toFixed(1)}% | ${passed ? 'PASS ✅' : 'FAIL ❌'}`);
+    // Top predicted class must BE the target AND exceed threshold.
+    // Prevents false pass when model is confused but target sneaks above 75%
+    // while something else scores higher.
+    const isTopClass = topIndex === targetIndex;
+    const passed = isTopClass && targetConfidence >= CONFIDENCE_THRESHOLD;
 
-    return { passed, confidence };
+    console.log(`🏆 Top prediction: "${topLabel}" (${(topConfidence * 100).toFixed(1)}%)`);
+    console.log(
+      `🎯 Target: "${targetName}" | Confidence: ${(targetConfidence * 100).toFixed(1)}% | Top class match: ${isTopClass ? '✅' : '❌'} | ${passed ? 'PASS ✅' : 'FAIL ❌'}`
+    );
+
+    return { passed, confidence: targetConfidence };
   } catch (error) {
     console.error('❌ Real AI verification failed:', error);
-    const confidence = Math.random();
-    return { passed: confidence >= 0.25, confidence };
+    return { passed: false, confidence: 0 };
   }
 };

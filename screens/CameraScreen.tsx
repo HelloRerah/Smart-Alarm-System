@@ -4,7 +4,7 @@ import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { launchCamera } from 'react-native-image-picker';
 import { RootStackParamList } from '../App';
-import { verifyPhoto } from '../services/aiVerification';
+import { verifyPhotoReal as verifyPhoto } from '../services/realAiVerification';
 import { scheduleStage2 } from '../services/alarmEngine';
 import notifee from '@notifee/react-native';
 
@@ -31,10 +31,12 @@ const CameraScreen = () => {
       if (result.passed) {
         if (mode === 'stage1') {
           await notifee.cancelNotification(route.params.alarm.id);
+          await notifee.stopForegroundService();
           await scheduleStage2(route.params.alarm, route.params.alarm.stage2DelayMinutes ?? 30);
           console.log('✅ Stage 2 scheduled');
         } else {
           await notifee.cancelNotification(`${route.params.alarm.id}_stage2`);
+          await notifee.stopForegroundService();
         }
 
         Alert.alert(

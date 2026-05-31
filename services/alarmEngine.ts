@@ -6,25 +6,24 @@ import notifee, {
 } from '@notifee/react-native';
 import { Alarm } from '../types/Alarm';
 
-const CHANNEL_ID = 'smart_alarm_v2';
+const CHANNEL_ID = 'smart_alarm_v3';
 
 const VERIFICATION_OBJECTS = [
-  'Water Bottle',
-  'House Keys',
+  'Keys',
   'TV Remote',
-  'Charger',
-  'Coffee Mug',
   'Shoes',
-  'Wallet',
-  'Book',
+  'Water Bottle',
+  'Kettle',
+  'TV',
+  'Broom',
+  'Chair',
 ];
 
 const OUTDOOR_OBJECTS = [
+  'Grass',
   'Tree',
   'Sky',
   'Brick Wall',
-  'Gate',
-  'Grass',
 ];
 
 export const getRandomObject = () =>
@@ -84,11 +83,10 @@ export const scheduleAlarm = async (alarm: Alarm): Promise<void> => {
         channelId: CHANNEL_ID,
         importance: AndroidImportance.HIGH,
         visibility: AndroidVisibility.PUBLIC,
-        fullScreenAction: { id: 'default' },
+        fullScreenAction: { id: 'default', launchActivity: 'default' },
         pressAction: { id: 'default', launchActivity: 'default' },
         sound: 'alarm_sound',
         vibrationPattern: [300, 500, 300, 500],
-        asForegroundService: true,
         loopSound: true,
       },
     },
@@ -126,11 +124,10 @@ export const scheduleStage2 = async (alarm: Alarm, delayMinutes: number): Promis
         channelId: CHANNEL_ID,
         importance: AndroidImportance.HIGH,
         visibility: AndroidVisibility.PUBLIC,
-        fullScreenAction: { id: 'default' },
+        fullScreenAction: { id: 'default', launchActivity: 'default' },
         pressAction: { id: 'default', launchActivity: 'default' },
         sound: 'alarm_sound',
         vibrationPattern: [300, 500, 300, 500],
-        asForegroundService: true,
         loopSound: true,
       },
     },

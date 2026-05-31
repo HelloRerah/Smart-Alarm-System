@@ -23,6 +23,7 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const handleNotificationPress = (data: any) => {
+  console.log(' handleNotificationPress called, stage:', data?.stage, 'data:', JSON.stringify(data));
   if (!data) return;
   if (data.stage === 'stage1') {
     navigate('AlarmRinging', {
@@ -58,24 +59,20 @@ const handleNotificationPress = (data: any) => {
 const App = () => {
 
   useEffect(() => {
-    // Init database
     initDatabase()
       .then(() => console.log('✅ Database ready'))
       .catch((err) => console.log('❌ Database init failed:', err));
 
-    // Request notification permission
     notifee.requestPermission().then((settings) => {
-      console.log('🔔 Notification permission:', settings.authorizationStatus);
+      console.log(' Notification permission:', settings.authorizationStatus);
     });
 
-    // Foreground event handler
     const unsubscribe = notifee.onForegroundEvent(({ type, detail }) => {
-      if (type === EventType.PRESS) {
+      if (type === EventType.PRESS || type === EventType.DELIVERED) {
         handleNotificationPress(detail.notification?.data);
       }
     });
 
-    // Handle notification that launched the app from killed state
     notifee.getInitialNotification().then((initialNotification) => {
       if (initialNotification) {
         handleNotificationPress(initialNotification.notification.data);

@@ -4,11 +4,18 @@ import { useRoute, RouteProp } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
+import { BackHandler } from 'react-native';
+import { useEffect } from 'react';
 
 const AlarmRingingScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'AlarmRinging'>>();
   const { alarm, verificationObject } = route.params;
+
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => true);
+    return () => backHandler.remove();
+  }, []);
 
   return (
     <View style={styles.container}>
